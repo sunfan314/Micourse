@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-4.0.xsd 
+	http://www.springframework.org/schema/aop 
+	http://www.springframework.org/schema/aop/spring-aop-4.0.xsd 
+	http://www.springframework.org/schema/tx  
+	http://www.springframework.org/schema/tx/spring-tx-4.0.xsd 
+	http://www.springframework.org/schema/context
+	http://www.springframework.org/schema/context/spring-context-4.0.xsd
+	http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+	<!-- 使用注解的包，包括子集 -->
+	<context:component-scan base-package="net.micourse" />
+
+	<!-- 关联数据库properties文件 -->
+	<bean
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:db2.properties</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 配置DataSource数据源 -->
+
+	<bean id="dataSource"
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="${driverClassName}" />
+		<property name="url" value="${url}" />
+		<property name="username" value="${username}" />
+		<property name="password" value="${password}" />
+	</bean>
+
+	<!-- 配置hibernate -->
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource">
+			<ref bean="dataSource" />
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">
+					org.hibernate.dialect.MySQLDialect
+				</prop>
+				<prop key="hibernate.show_sql">false</prop>
+				<prop key="hibernate.hbm2ddl.auto">update</prop>
+			</props>
+		</property>
+		<!-- 自动扫描注解方式配置的hibernate类文件 -->
+		<property name="packagesToScan">
+			<list>
+				<value>net.micourse.model</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 事务管理 -->
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<tx:annotation-driven transaction-manager="transactionManager" />
+	<context:annotation-config />
+
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="list*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="get*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="find*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="query*" propagation="REQUIRED" read-only="true" />
+			<tx:method name="*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+	<aop:config>
+		<aop:pointcut id="serviceMethods"
+			expression="execution(* net.micourse.service.*.*(..))" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="serviceMethods" />
+	</aop:config>
+
+
+	<!-- 解决ResponseBody返回json乱码 -->
+	<mvc:annotation-driven>
+		<mvc:message-converters register-defaults="true">
+			<bean class="org.springframework.http.converter.StringHttpMessageConverter">
+				<constructor-arg value="UTF-8" />
+			</bean>
+			<bean
+				class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+				<property name="objectMapper">
+					<bean
+						class="org.springframework.http.converter.json.Jackson2ObjectMapperFactoryBean">
+						<property name="failOnEmptyBeans" value="false" />
+					</bean>
+				</property>
+			</bean>
+		</mvc:message-converters>
+	</mvc:annotation-driven>
+
+	<!-- 文件上传 -->
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+
+		<property name="defaultEncoding" value="UTF-8" />
+		<property name="maxUploadSize" value="1000000000" />
+
+	</bean>
+	
+	<!-- 配置静态资源路径 -->
+	<mvc:annotation-driven />
+	<mvc:resources mapping="/resources/**" location="/resources/" />
+</beans>
